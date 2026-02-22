@@ -84,6 +84,26 @@
         th {
             background-color: var(--card);
         }
+        
+        .reset-button-container {
+            margin-bottom: 15px;
+        }
+        
+        #reset-btn {
+            padding: 8px 16px;
+            background-color: #ff6b6b;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+        
+        #reset-btn:hover {
+            background-color: #ff5252;
+        }
 
         /* Floating Dark Mode Button */
         #theme-toggle {
@@ -192,9 +212,13 @@
 
         <!-- <h1>MIR4 Boss Spawn Tracker</h1> -->
         <p>Note: Timers are based on your local time. Adjust for your server's timezone (e.g., MIR4 often uses UTC+8 for Asia servers).</p>
+        <div class="reset-button-container">
+            <button id="reset-btn" onclick="resetAllCompleted()">Reset All Completed Records</button>
+        </div>
         <table id="boss-table">
             <thead>
                 <tr>
+                    <th>Completed?</th>
                     <th>Area</th>
                     <th>Boss Name</th>
                     <th>Location</th>
@@ -432,13 +456,25 @@
             filtered.forEach(b => {
                 const tr = document.createElement('tr');
                 const id = b.name.replace(/\s/g,'');
+                const isCompleted = localStorage.getItem(`completed-${id}`) === 'true';
                 tr.innerHTML = `
+                    <td><input type="checkbox" class="boss-completed" data-boss-id="${id}" ${isCompleted ? 'checked' : ''}></td>
                     <td>${b.area}</td>
                     <td>${b.name}</td>
                     <td>${b.location}</td>
                     <td id="next-${id}"></td>
                     <td id="count-${id}"></td>`;
                 tbody.appendChild(tr);
+            });
+            // Add event listeners to checkboxes
+            document.querySelectorAll('.boss-completed').forEach(checkbox => {
+                checkbox.addEventListener('change', (e) => {
+                    const bossId = e.target.dataset.bossId;
+                    localStorage.setItem(`completed-${bossId}`, e.target.checked);
+                    // Re-sort table with updated completion status
+                    const currentMap = document.querySelector('nav li.active').textContent;
+                    filterTable(currentMap === 'All Maps' ? null : currentMap);
+                });
             });
         }
         function updateTimers() {
@@ -464,9 +500,30 @@
             });
         }
         function filterTable(map) {
-            const filtered = map ? bosses.filter(b => b.map === map) : bosses;
+            let filtered = map ? bosses.filter(b => b.map === map) : bosses;
+            // Sort by completion status - unchecked items first
+            filtered = filtered.sort((a, b) => {
+                const aId = a.name.replace(/\s/g,'');
+                const bId = b.name.replace(/\s/g,'');
+                const aCompleted = localStorage.getItem(`completed-${aId}`) === 'true';
+                const bCompleted = localStorage.getItem(`completed-${bId}`) === 'true';
+                return aCompleted - bCompleted;
+            });
             populateTable(filtered);
             updateTimers();
+        }
+        
+        function resetAllCompleted() {
+            if (confirm('Are you sure you want to reset all completed records? This action cannot be undone.')) {
+                // Clear all completion records from localStorage
+                bosses.forEach(b => {
+                    const id = b.name.replace(/\s/g,'');
+                    localStorage.removeItem(`completed-${id}`);
+                });
+                // Refresh the current table view
+                const currentMap = document.querySelector('nav li.active').textContent;
+                filterTable(currentMap === 'All Maps' ? null : currentMap);
+            }
         }
 
         // Init
