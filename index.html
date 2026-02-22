@@ -501,13 +501,22 @@
         }
         function filterTable(map) {
             let filtered = map ? bosses.filter(b => b.map === map) : bosses;
-            // Sort by completion status - unchecked items first
+            // Sort by completion status (unchecked first) and then by countdown (ascending order)
             filtered = filtered.sort((a, b) => {
                 const aId = a.name.replace(/\s/g,'');
                 const bId = b.name.replace(/\s/g,'');
                 const aCompleted = localStorage.getItem(`completed-${aId}`) === 'true';
                 const bCompleted = localStorage.getItem(`completed-${bId}`) === 'true';
-                return aCompleted - bCompleted;
+                
+                // Primary sort: unchecked items first
+                if (aCompleted !== bCompleted) {
+                    return aCompleted - bCompleted;
+                }
+                
+                // Secondary sort: by countdown time (ascending - soonest first)
+                const aNext = getNextSpawn(a);
+                const bNext = getNextSpawn(b);
+                return aNext - bNext;
             });
             populateTable(filtered);
             updateTimers();
