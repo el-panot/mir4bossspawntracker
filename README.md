@@ -76,7 +76,7 @@ The tracker supports:
 Developed with ❤️ by GOONS
 
 - **Ko-fi**: [Support us on Ko-fi](https://ko-fi.com/goonsnetwork)
-- **WEMIX PLAY**: `0x096605352effe89ac90da09a735718096b86bf6c`
+- **WEMIX PLAY**: `0xae9083d1ef02a0a4a341b03a826094568d928cba`
 
 **Not affiliated with Wemade**
 
