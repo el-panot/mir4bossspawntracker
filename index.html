@@ -84,6 +84,22 @@
         th {
             background-color: var(--card);
         }
+
+        tr.recent-expired {
+            background-color: #ffe8e8;
+        }
+
+        tr.upcoming-soon {
+            background-color: #e9fff4;
+        }
+
+        [data-theme="dark"] tr.recent-expired {
+            background-color: #4a1f1f;
+        }
+
+        [data-theme="dark"] tr.upcoming-soon {
+            background-color: #1b3f33;
+        }
         
         .reset-button-container {
             margin-bottom: 15px;
@@ -394,8 +410,66 @@
             filterTable(null);
         }
 
-        // Next spawn calculation
+        // Spawn window helpers
+        function getSpawnWindow(boss) {
+            const now = new Date();
+            if (boss.type === 'daily') {
+                const occurrences = [];
+                for (let dayOffset = -1; dayOffset <= 1; dayOffset++) {
+                    boss.times.forEach(t => {
+                        const [h, m] = t.split(':').map(Number);
+                        occurrences.push(new Date(
+                            now.getFullYear(),
+                            now.getMonth(),
+                            now.getDate() + dayOffset,
+                            h,
+                            m,
+                            0,
+                            0
+                        ));
+                    });
+                }
+                occurrences.sort((a, b) => a - b);
+                let prev = null;
+                let next = null;
+                occurrences.forEach(d => {
+                    if (d <= now) prev = d;
+                    if (!next && d > now) next = d;
+                });
+                return { prev, next };
+            } else if (boss.type === 'weekly') {
+                const [h, m] = boss.time.split(':').map(Number);
+                const currentWeekTarget = new Date(now);
+                currentWeekTarget.setHours(h, m, 0, 0);
+                const dayDiff = boss.day - currentWeekTarget.getDay();
+                currentWeekTarget.setDate(currentWeekTarget.getDate() + dayDiff);
+
+                let prev = new Date(currentWeekTarget);
+                let next = new Date(currentWeekTarget);
+                if (currentWeekTarget <= now) {
+                    next.setDate(next.getDate() + 7);
+                } else {
+                    prev.setDate(prev.getDate() - 7);
+                }
+
+                return { prev, next };
+            }
+            return { prev: null, next: null };
+        }
+
         function getNextSpawn(boss) {
+            return getSpawnWindow(boss).next;
+        }
+
+        function formatDuration(ms) {
+            const h = Math.floor(ms / 3600000);
+            const m = Math.floor((ms % 3600000) / 60000);
+            const s = Math.floor((ms % 60000) / 1000);
+            return `${h}h ${m}m ${s}s`;
+        }
+
+        // Next spawn calculation
+        function getLegacyNextSpawn(boss) {
             const now = new Date();
             if (boss.type === 'daily') {
                 let next = null;
@@ -493,16 +567,36 @@
                 const nextEl = document.getElementById(`next-${b.name.replace(/\s/g,'')}`);
                 const countEl = document.getElementById(`count-${b.name.replace(/\s/g,'')}`);
                 if (!nextEl) return;
-                const next = getNextSpawn(b);
+                const row = nextEl.closest('tr');
+                if (row) row.classList.remove('recent-expired', 'upcoming-soon');
+
+                const now = new Date();
+                const window = getSpawnWindow(b);
+                const next = window.next;
+                const prev = window.prev;
+
+                const justSpawnedMs = prev ? now - prev : Number.POSITIVE_INFINITY;
+                const isRecentlySpawned = justSpawnedMs >= 0 && justSpawnedMs <= 600000;
+
+                if (isRecentlySpawned) {
+                    nextEl.textContent = prev.toLocaleString();
+                    countEl.textContent = `Spawned ${formatDuration(justSpawnedMs)} ago`;
+                    countEl.style.color = '#d32f2f';
+                    if (row) row.classList.add('recent-expired');
+                    return;
+                }
+
                 if (next) {
                     nextEl.textContent = next.toLocaleString();
-                    const diff = next - new Date();
+                    const diff = next - now;
                     if (diff > 0) {
-                        const h = Math.floor(diff / 3600000);
-                        const m = Math.floor((diff % 3600000) / 60000);
-                        const s = Math.floor((diff % 60000) / 1000);
-                        countEl.textContent = `${h}h ${m}m ${s}s`;
-                        countEl.style.color = diff < 600000 ? '#00ff00' : '';
+                        countEl.textContent = formatDuration(diff);
+                        if (diff <= 600000) {
+                            countEl.style.color = '#0f9d58';
+                            if (row) row.classList.add('upcoming-soon');
+                        } else {
+                            countEl.style.color = '';
+                        }
                     } else {
                         countEl.textContent = 'Spawned';
                         countEl.style.color = '#00ff00';
