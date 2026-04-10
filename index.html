@@ -369,7 +369,7 @@
         // Navigation
         const ul = document.getElementById('map-list');
         const allLi = document.createElement('li');
-        allLi.textContent = 'All Maps'; allLi.classList.add('active');
+        allLi.textContent = 'All Maps';
         allLi.onclick = () => { setActive(allLi); filterTable(null); };
         ul.appendChild(allLi);
         maps.forEach(m => {
@@ -381,6 +381,17 @@
         function setActive(el) {
             document.querySelectorAll('nav li').forEach(i => i.classList.remove('active'));
             el.classList.add('active');
+        }
+
+        const defaultMap = 'Mirage Ship - Layer 3';
+        const defaultLi = [...document.querySelectorAll('#map-list li')]
+            .find(li => li.textContent === defaultMap);
+        if (defaultLi) {
+            setActive(defaultLi);
+            filterTable(defaultMap);
+        } else {
+            setActive(allLi);
+            filterTable(null);
         }
 
         // Next spawn calculation
@@ -536,7 +547,6 @@
         }
 
         // Init
-        filterTable(null);
         setInterval(updateTimers, 1000);
         setTimeout(() => {
             updateTimers();
